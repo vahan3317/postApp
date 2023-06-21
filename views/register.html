@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Register</h1>
+    <form id="registerForm">
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <p id="errorText" class="error-text"></p> <!-- Added error text element -->
+      <button type="submit">Register</button>
+    </form>
+    <p>Already have an account? <a href="/login">Login</a></p>
+  </div>
+
+  <script>
+    document.getElementById("registerForm").addEventListener("submit", function(event) {
+      event.preventDefault(); // Prevent the form from submitting normally
+      
+      var email = document.getElementById("email").value;
+      var password = document.getElementById("password").value;
+
+      // Reset error message
+      document.getElementById("errorText").textContent = "";
+
+      // Validate email and password
+      if (!validateEmail(email)) {
+        document.getElementById("errorText").textContent = "Invalid email";
+        return;
+      }
+
+      if (!validatePassword(password)) {
+        document.getElementById("errorText").textContent = "Invalid password. Password should have at least 6 characters.";
+        return;
+      }
+
+      fetch("/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: email, password: password })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Handle the response data
+        if (data.error) {
+          // Display error message
+          document.getElementById("errorText").textContent = data.error;
+          console.error(data.error);
+        } else {
+          // Registration successful, redirect to login page
+          window.location.href = "/login";
+        }
+      })
+      .catch(error => {
+        // Handle the error
+        document.getElementById("errorText").textContent = "Error during registration";
+        console.error("Error during registration", error);
+      });
+    });
+
+    // Email validation function
+    function validateEmail(email) {
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Password validation function
+    function validatePassword(password) {
+      return password.length >= 6;
+    }
+  </script>
+</body>
+
+</html>

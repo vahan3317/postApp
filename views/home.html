@@ -1,0 +1,316 @@
+<!-- home.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Home</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+  <script src="/script.js"></script>
+  <style>
+    /* CSS for the modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+      margin: 0 auto;
+      
+    }
+    
+    .modal-content {
+      background-color: #fefefe;
+      text-align: center;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 50%;
+      margin: 0 auto;
+      margin-top: 50px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+ 
+  <div class="top">
+    <h1>Добро пожаловать на главную страницу</h1>
+    <button id="logoutButton"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+    <h2 id="createPostToggle">Создать пост</h2> 
+    <div class="main" id="createPostSection" style="display: none;"> <!-- Изначально скрыто -->
+      <form id="createPostForm">
+        <label for="title">Заголовок:</label>
+        <input type="text" id="title" name="title" required><br>
+        <label for="content">Содержание:</label>
+        <textarea id="content" name="content" rows="4" required></textarea><br>
+        <button type="submit">Отправить</button>
+      </form>
+    </div>
+  </div>
+  <div class="searchDiv">
+  <input type="text" id="search-input" placeholder="Search Posts">
+  <button id="search-button" >Search</button>
+  <button id="refresh">Reload</button>
+</div>
+<div id="alert-container"></div>
+  <div id="post-container"></div>
+  
+  <!-- The modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h2>Edit Post</h2>
+      <form id="editPostForm" style="margin: 0 auto;">
+        <label for="editTitle">Заголовок:</label>
+        <input type="text" id="editTitle" name="editTitle" required><br>
+        <label for="editContent">Содержание:</label>
+        <textarea id="editContent" name="editContent" rows="4" required></textarea><br>
+        <button type="submit">Update</button>
+        <button id="closeModal">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add an alert container to display the error messages -->
+<div id="alert-container"></div>
+
+<script>
+  function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    const alertElement = document.createElement('div');
+    alertElement.classList.add('alert', `alert-${type}`);
+    alertElement.textContent = message;
+    alertContainer.appendChild(alertElement);
+    // Remove the alert after a certain period of time (e.g., 3 seconds)
+    setTimeout(() => {
+      alertElement.remove();
+    }, 3000);
+  }
+
+  function clearAlerts() {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = '';
+  }
+
+  function searchPosts(searchTerm) {
+    const postContainer = document.getElementById('post-container');
+    const posts = document.querySelectorAll('.card');
+
+    // Clear the post container
+    postContainer.innerHTML = '';
+
+    // Iterate over the posts and check if the title or content contains the search term
+    for (const post of posts) {
+      const title = post.querySelector('h2').textContent;
+      const content = post.querySelector('p').textContent;
+
+      if (title.toLowerCase().includes(searchTerm.toLowerCase()) || content.toLowerCase().includes(searchTerm.toLowerCase())) {
+        postContainer.appendChild(post);
+      }
+    }
+  }
+
+  // Attach event listener to the search button
+  const searchButton = document.getElementById('search-button');
+  searchButton.addEventListener('click', function() {
+    const searchTerm = document.getElementById('search-input').value;
+    searchPosts(searchTerm);
+  });
+
+  const refresh = document.getElementById('refresh');
+  refresh.addEventListener('click', function() {
+    location.reload();
+  });
+
+  // Logout button click event handler
+  document.getElementById('logoutButton').addEventListener('click', () => {
+    fetch('/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => {
+        if (response.redirected) {
+          window.location.href = response.url; // Redirect to the login page
+        } else {
+          showAlert('Logout failed', 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error during logout', error);
+        showAlert('Error during logout', 'danger');
+      });
+  });
+
+  // Create post form submit event handler
+  document.getElementById('createPostForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+
+    const token = localStorage.getItem('token'); // Retrieve the token from local storage
+
+    fetch('/create-post', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // Include the token in the request headers
+      },
+      body: JSON.stringify({ title, content })
+    })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Post created successfully', 'success');
+          document.getElementById('title').value = '';
+          document.getElementById('content').value = '';
+          window.location.reload();
+        } else {
+          showAlert('Failed to create post', 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error creating post', error);
+        showAlert('Error creating post', 'danger');
+      });
+  });
+
+  // Fetch posts from the server
+  fetch('/posts')
+    .then(response => response.json())
+    .then(posts => {
+      const postContainer = document.getElementById('post-container');
+
+      // Check if posts array is not null or empty
+      if (Array.isArray(posts) && posts.length > 0) {
+        // Iterate over the posts and create card elements
+        posts.forEach(post => {
+          const card = document.createElement('div');
+          card.classList.add('card');
+
+          const title = document.createElement('h2');
+          title.textContent = post.title;
+
+          const content = document.createElement('p');
+          content.textContent = post.content;
+
+          const userId = document.createElement('p'); // Create a paragraph element for user ID
+          userId.textContent = 'User ID: ' + post.user_id; // Set the user ID text
+
+          const deleteButton = document.createElement('button');
+          deleteButton.textContent = 'Delete';
+          deleteButton.addEventListener('click', () => {
+            deletePost(post.id); // Call the deletePost function with the post ID
+          });
+
+          const editButton = document.createElement('button');
+          editButton.textContent = 'Edit';
+          editButton.addEventListener('click', () => {
+            openEditModal(post.id, post.title, post.content); // Call the openEditModal function with the post ID, title, and content
+          });
+
+          card.appendChild(title);
+          card.appendChild(content);
+          card.appendChild(userId); // Append the user ID element to the card
+          card.appendChild(deleteButton);
+          card.appendChild(editButton);
+
+          postContainer.appendChild(card);
+        });
+      } else {
+        const noPostsMessage = document.createElement('p');
+        noPostsMessage.textContent = 'No posts available.';
+        postContainer.appendChild(noPostsMessage);
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching posts:', error);
+      showAlert('Error fetching posts', 'danger');
+    });
+
+  function deletePost(postId) {
+    const token = localStorage.getItem('token');
+
+    fetch(`/delete-post/${postId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(response => {
+        if (response.ok) {
+          location.reload();
+        } else if (response.status === 404) {
+          showAlert('You cant delete it ,because you didnt create this post', 'danger');
+        } else {
+          showAlert('Failed to delete post', 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error deleting post', error);
+        showAlert('Error deleting post', 'danger');
+      });
+  }
+
+  function openEditModal(postId, currentTitle, currentContent) {
+    const modal = document.getElementById('editModal');
+    const editTitleInput = document.getElementById('editTitle');
+    const editContentInput = document.getElementById('editContent');
+
+    editTitleInput.value = currentTitle;
+    editContentInput.value = currentContent;
+
+    // Update post event handler
+    document.getElementById('editPostForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const newTitle = editTitleInput.value;
+      const newContent = editContentInput.value;
+
+      const token = localStorage.getItem('token');
+
+      fetch(`/edit-post/${postId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: newTitle, content: newContent })
+      })
+        .then(response => {
+          if (response.ok) {
+            showAlert('Post updated successfully', 'success');
+            modal.style.display = 'none';
+            window.location.reload();
+          } else if (response.status === 404) {
+            showAlert('Post not found', 'danger');
+          } else {
+            showAlert('Failed to update post', 'danger');
+          }
+        })
+        .catch(error => {
+          console.error('Error updating post', error);
+          showAlert('Error updating post', 'danger');
+        });
+    });
+
+    // Close modal event handler
+    document.getElementById('closeModal').addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    modal.style.display = 'block';
+  }
+
+  document.getElementById('createPostToggle').addEventListener('click', () => {
+    const createPostSection = document.getElementById('createPostSection');
+    createPostSection.style.display = createPostSection.style.display === 'none' ? 'block' : 'none';
+  });
+</script>
+
+  
+</body>
+</html>

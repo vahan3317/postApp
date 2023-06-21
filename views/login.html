@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Login</h1>
+    <form id="loginForm">
+  
+      <input type="email" id="email" placeholder="Email" required>
+     
+      <input type="password" id="password" placeholder="Password" required>
+      <p id="errorText" class="error-text" style="color: red;"></p> <!-- Added error text element -->
+      <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="/register">Register</a></p>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", function(event) {
+      event.preventDefault(); // Prevent the form from submitting normally
+
+      var email = document.getElementById("email").value;
+      var password = document.getElementById("password").value;
+
+      // Reset error message
+      document.getElementById("errorText").textContent = "";
+
+      // Validate email and password
+      if (!validateEmail(email) || !validatePassword(password)) {
+        document.getElementById("errorText").textContent = "Invalid email or password";
+        return;
+      }
+
+      fetch("/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          } else if (response.status === 401) {
+            throw new Error("Invalid email or password");
+          } else {
+            throw new Error("Error during login");
+          }
+        })
+        .then(data => {
+          // Handle the response data
+          localStorage.setItem("token", data.token);
+
+          // Redirect to home.html
+          window.location.href = "/home";
+        })
+        .catch(error => {
+          // Handle the error
+          document.getElementById("errorText").textContent = error.message;
+          console.error("Error during login", error);
+        });
+    });
+
+    // Email validation function
+    function validateEmail(email) {
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Password validation function
+    function validatePassword(password) {
+      return password.length >= 6;
+    }
+  </script>
+</body>
+
+</html>
